@@ -1,0 +1,6 @@
+{
+  "REQ-1": [{"file": ".jaros-data/agents/orchestrator_agent.py"}],
+  "REQ-2": [{"file": ".jaros-data/agents/editor_agent.py"}],
+  "REQ-3": [{"file": ".jaros-data/agents/planner_agent.py"}],
+  "REQ-4": [{"file": ".jaros-data/agents/test_reader_agent.py"}]
+}

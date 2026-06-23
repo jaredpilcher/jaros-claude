@@ -1,0 +1,6 @@
+{
+  "REQ-1": [{"file": "harness/runtime.py"}],
+  "REQ-2": [{"file": "harness/agent_loop.py"}],
+  "REQ-3": [{"file": "harness/cli.py"}],
+  "REQ-4": [{"file": "jaros_claude/state/decision_log.py"}]
+}

@@ -1,0 +1,4 @@
+{
+  "REQ-1": [{"file": "jaros_claude/llm/client.py"}],
+  "REQ-2": [{"file": "jaros_claude/llm/claude_client.py"}]
+}

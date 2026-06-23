@@ -1,0 +1,7 @@
+{
+  "provider": "claude",
+  "model": "claude-opus-4-8",
+  "effort": "high",
+  "max_tokens": 16000,
+  "note": "Reasoning is served by Claude (Anthropic Messages API). Set ANTHROPIC_API_KEY in the environment. Override the model with JCLAUDE_MODEL, effort with JCLAUDE_EFFORT, output cap with JCLAUDE_MAX_TOKENS. The model proposes inert Decisions only; the deterministic gate + tools perform every side effect."
+}

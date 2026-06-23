@@ -1,0 +1,8 @@
+{
+  "REQ-1": [{"file": ".jaros-data/tools/fs_read_tool.py"}],
+  "REQ-2": [{"file": ".jaros-data/tools/fs_list_tool.py"}],
+  "REQ-4": [{"file": ".jaros-data/tools/apply_patch_tool.py"}],
+  "REQ-5": [{"file": ".jaros-data/tools/shell_exec_tool.py"}],
+  "REQ-6": [{"file": ".jaros-data/tools/write_file_tool.py"}],
+  "REQ-7": [{"file": ".jaros-data/tools/_codesafety.py"}]
+}

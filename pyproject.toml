@@ -1,0 +1,23 @@
+[project]
+name = "jaros-claude"
+version = "0.1.0"
+description = "Claude under two-plane control — a copy-in template applying the Jaros/jaros-code agent-decision discipline to Claude."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+# The runtime and tests are stdlib-only. `anthropic` is required only to actually
+# call Claude (the ClaudeClient adapter).
+dependencies = []
+
+[project.optional-dependencies]
+claude = ["anthropic>=0.40"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+jaros-claude = "harness.cli:main"
+
+[tool.setuptools]
+packages = ["jaros_claude", "jaros_claude.core", "jaros_claude.execution", "jaros_claude.state", "jaros_claude.llm", "harness"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
