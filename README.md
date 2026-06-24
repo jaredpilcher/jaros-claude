@@ -1,90 +1,104 @@
 # jaros-claude
 
-**Claude under two-plane control — as a copy-in template.** A software-development
-agent harness that gives Claude the same disciplined control over agent decisions
-that **Jaros** and **jaros-code** apply to a small local model: the model only
-emits inert `Decision` data, and a deterministic execution plane — a gate that
-validates and tools that act — performs every side effect.
-
-You copy this repository's contents into another project, and that project
-inherits the discipline: every reasoning call is Claude, every effect is gated,
-every decision is recorded and replayable.
+**The jaros-code discipline, running on the Claude Code harness you already use.**
+A copy-in template that makes **Claude Code itself** operate under the two-plane
+control of Jaros and jaros-code — the model proposes, a deterministic gate decides,
+every decision is recorded — **without a new harness and without any extra commands
+to run.** You drop its contents into a project and Claude Code just operates that
+way.
 
 ## The idea
 
-jaros-code's bet is that a *small* model becomes useful when the harness is
-strong. jaros-claude flips the motivation: a *strong* model becomes **safe,
-reproducible, and auditable** when the harness is in control. The architecture is
-identical — only the reason changes.
+jaros-code's bet is that a *small* model becomes useful when the harness is strong.
+jaros-claude flips the motivation: a *strong* model becomes **safe, reproducible,
+and auditable** when the harness is in control. And the harness here is not
+something new — it is **Claude Code**, governed through its own native extension
+points (`CLAUDE.md`, `.claude/agents`, `.claude/settings.json` hooks, `.jarify`).
 
-- **Two-plane discipline.** Claude emits inert `Decision` data; a deterministic,
-  gate-checked execution plane (tools) performs every side effect. A wrong or
-  unsafe proposal is rejected at the gate, never executed.
-- **Confine the capable model.** Claude holds no host handles and drives no
-  execution. Even a correct proposal runs only through the deterministic plane.
-- **Record and replay.** Every accepted Decision is hash-chain logged before its
-  effect is observable; the log replays through the deterministic executor with
-  **zero model calls**, reconstructing any run. Tampering is detectable.
-
-The control is a governance property — safety, reproducibility, auditability — and
-none of it depends on the model being weak.
+The two planes map cleanly onto Claude Code:
 
 ```
-request ─► Claude (inert Decision) ─► gate/validate ─► deterministic tools (effects) ─► hash-chained, replayable log
+you (Claude) propose a tool call ─► PreToolUse gate decides ─► Claude Code's tools run it ─► PostToolUse hook hash-chains it to the audit log
 ```
+
+| Jaros / jaros-code concept | Claude Code mechanism |
+|---|---|
+| reasoning plane (the model) | Claude driving Claude Code |
+| single-purpose agents | `.claude/agents/*.md` subagents (auto-delegated) |
+| the decision **gate** | a **PreToolUse hook** (`.claude/hooks/gate.py` + `policy.py`) |
+| deterministic execution tools | Claude Code's built-in Bash / Write / Edit / Read |
+| hash-chained decision log | a **PostToolUse hook** → `.claude/audit/decisions.jsonl` |
+| spec-first governance | `.jarify/` (PRIME-001 + EXT specs) + `index.json` |
+| the jarify roles | `spec-author`, `task-decomposer`, `builder`, `architect` |
+
+## It just operates that way (authentic, no ceremony)
+
+Nothing to switch on. Three hooks make the discipline passive:
+
+- **SessionStart** binds every session to the Prime Directive (injects the
+  governance as standing context).
+- **PreToolUse** runs the **gate** on every Bash/Write/Edit and deterministically
+  refuses the unsafe ones — destructive/privileged commands, piping remote content
+  into a shell, writes into credential/system locations. A refusal is shown to
+  Claude, and the call never executes.
+- **PostToolUse** records every executed call to a tamper-evident, hash-chained
+  decision log.
+
+You use Claude Code exactly as you always do; the control rides along.
 
 ## What's in the box
 
-| Piece | What it is |
-|---|---|
-| `jaros_claude/` | A self-contained, stdlib-only two-plane runtime: `Decision`, the gate, the executor, the tool loader, and the hash-chained decision log. |
-| `jaros_claude/llm/` | The narrow `LlmClient` contract and the `ClaudeClient` adapter (Anthropic Messages API, Claude Opus 4.8, adaptive thinking). |
-| `.jaros-data/agents/` | Single-purpose Claude agents: `orchestrator`, `planner`, `editor`, `test-reader`. Each makes one judgement and emits a Decision. |
-| `.jaros-data/tools/` | Deterministic tools: `fs.read`, `fs.list`, `code.write_file`, `code.apply_patch`, `shell.exec` — each with `validate()` + `execute()` and a safety gate. |
-| `harness/` | The Claude-Code-like CLI, the gate→execute→record `Runtime`, and a plan→act→observe→replan loop. |
-| `.jarify/` | The governance: `PRIME-001` (the Prime Directive) plus `EXT-001..004`, with `index.json` traceability. |
-| `tests/` | Proofs that the control holds — run offline with a fake LLM, no API key needed. |
-
-## CLI
-
 ```
-export ANTHROPIC_API_KEY=sk-ant-...
-python -m harness.cli                 # interactive REPL
-python -m harness.cli /status         # one command and exit
-python -m harness.cli "fix foo.py"    # one plain request (orchestrator routes it)
-```
-
-Slash commands: `/status /read /list /edit /write /run /plan /agent /log /help /quit`.
-A plain request is routed by the `orchestrator` agent (Claude) to one action;
-the action runs through the gate and tools, and every decision lands in the log.
-
-## Try the control without a key
-
-```
-python -m pytest -q
+.claude/
+  settings.json          wires the three hooks so the discipline is active on copy-in
+  hooks/
+    gate.py              PreToolUse — the deterministic decision gate
+    policy.py            the denylist / safety policy (the single tuning point)
+    log-decision.py      PostToolUse — appends a hash-chained record per tool call
+    session-init.py      SessionStart — binds the session to PRIME-001
+    verify-chain.py      read-only chain verifier (used by /jarify-status)
+  agents/                single-purpose subagents: spec-author, task-decomposer,
+                         builder, architect (the jarify roles)
+  commands/
+    jarify-status.md     optional, read-only: specs + gate posture + chain integrity
+.jarify/                 governance: PRIME-001 (Prime Directive) + EXT-001..004,
+                         with index.json traceability
+CLAUDE.md                the working agreement Claude Code loads every session
+SAFETY.md                what the gate guarantees, allows, and how to harden it
 ```
 
-The tests prove the discipline offline (a fake LLM stands in for Claude): the
-gate rejects malformed and unsafe proposals, the decision log replays
-byte-for-byte with zero model calls, tampering is detected, and agents emit only
-inert Decisions.
+## Try the gate
+
+The hooks are plain stdlib Python 3 — no dependencies, no `jq`. You can exercise the
+gate directly:
+
+```bash
+echo '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}' | python3 .claude/hooks/gate.py   # exit 2 (blocked)
+echo '{"tool_name":"Bash","tool_input":{"command":"python -m pytest -q"}}' | python3 .claude/hooks/gate.py   # exit 0 (allowed)
+python3 .claude/hooks/verify-chain.py   # decision-log status + chain integrity
+```
+
+In a Claude Code session, `/jarify-status` summarizes the specs, the gate posture,
+and the chain integrity.
 
 ## Governance
 
-The repo is governed by `.jarify/` specifications; **`PRIME-001` is the Prime
-Directive**. Its five ordered, non-negotiable tenets: (1) two-plane discipline,
-(2) Claude confined to the reasoning plane, (3) reproducible & honest,
-(4) spec-first, (5) Claude-Code-like UX — a lower tenet is never weakened for a
-higher one. See `CLAUDE.md` for the working agreement and `.jarify/PRIME-001/` for
-the full intent and architecture.
+The repo is governed by `.jarify/`; **`PRIME-001` is the Prime Directive**. Its five
+ordered, non-negotiable tenets: (1) two-plane discipline, (2) Claude confined /
+capability by composition, (3) reproducible & honest, (4) spec-first, (5)
+Claude-Code-like UX — a lower tenet is never weakened for a higher one. See
+`CLAUDE.md` for the working agreement and `.jarify/PRIME-001/` for the full intent
+and the architecture mapping.
 
-## Requirements
+## Adopting it
 
-- Python 3.10+
-- `anthropic` (`pip install anthropic`) — only needed to actually call Claude; the
-  runtime and tests are stdlib-only.
-- `ANTHROPIC_API_KEY` in the environment.
+Copy the contents into your project. Capture your intent as that project's PRIME
+directive, then run the jarify loop with the subagents — one scoped task at a time,
+every effect through the gate, code traced to the spec. Tune the gate in
+`.claude/hooks/policy.py` (e.g. flip `BLOCK_ALL_EGRESS` on for the strict
+jaros-code unattended posture) — and treat that as a governance change.
 
 ---
 
-*Claude does the reasoning. The harness keeps the authority. That's the whole point.*
+*Claude Code does the reasoning. The gate keeps the authority. No new harness, no
+extra commands — it just operates that way.*

@@ -1,16 +1,13 @@
 # Python
 __pycache__/
 *.py[cod]
-*.egg-info/
-.venv/
-venv/
-.pytest_cache/
 
 # Secrets / env
 .env
 *.key
 
-# Runtime state (the decision log and any artifacts are per-run, not source)
-.jaros-data/state/
-.jaros-data/artifacts/
-.pytest_cache/
+# Runtime state — the decision log is per-working-copy, not source
+.claude/audit/
+
+# Editor / OS noise
+.DS_Store

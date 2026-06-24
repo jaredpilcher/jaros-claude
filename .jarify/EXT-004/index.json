@@ -1,4 +1,6 @@
 {
-  "REQ-1": [{"file": "jaros_claude/llm/client.py"}],
-  "REQ-2": [{"file": "jaros_claude/llm/claude_client.py"}]
+  "REQ-1": [{"file": "CLAUDE.md"}],
+  "REQ-2": [{"file": ".claude/settings.json"}],
+  "REQ-3": [{"file": ".jarify/PRIME-001/intent.md"}],
+  "REQ-4": [{"file": "SAFETY.md"}]
 }

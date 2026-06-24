@@ -1,126 +1,122 @@
 # PRIME-001 — System Architecture
 
-`jaros-claude` is a fleet of single-purpose reasoning agents (each calling
-**Claude**) whose only output is inert `Decision` data, executed by a
-deterministic tool plane on top of a vendored two-plane runtime. This document
-maps the architecture the Intent demands. It is a **template**: the same shape is
-what you adopt into a project to put Claude under control.
+`jaros-claude` does not add a harness. It **governs the Claude Code harness** so
+that Claude — driving its own tools — operates under the two-plane discipline. The
+mapping from the Jaros architecture onto Claude Code's native extension points is
+the whole design.
 
-## The two planes
+## The two planes, mapped onto Claude Code
 
 ```text
         ┌──────────────────────── REASONING PLANE ────────────────────────────┐
-        │  single-purpose agents — each makes ONE narrow judgement via Claude   │
-        │  and emits inert JSON Decisions only (no side effects, no handles)    │
-        │                                                                       │
-        │   [orchestrator]   [planner]   [editor]   [test-reader]   …           │
+        │  Claude (driving Claude Code) + single-purpose subagents in           │
+        │  .claude/agents — each makes ONE narrow judgement and PROPOSES a       │
+        │  tool call. No subagent holds ungated authority.                       │
         └───────────────────────────────┬───────────────────────────────────────┘
-                                        │  Decision data (slips of paper)
+                                        │  proposed tool call (the "Decision")
                                         ▼
         ┌──────────────────────── DECISION GATE ───────────────────────────────┐
-        │  deterministic validate() per tool — accept / reject the proposal      │
-        │  (structural checks + per-tool safety: uniqueness, denylist, size)     │
+        │  PreToolUse hook  (.claude/hooks/gate.py + policy.py)                   │
+        │  deterministically ACCEPTS or REFUSES the call BEFORE it runs.          │
+        │  A refusal (exit 2) is shown to Claude; the call never executes.        │
         └───────────────────────────────┬───────────────────────────────────────┘
                                         ▼
         ┌──────────────────────── EXECUTION PLANE ─────────────────────────────┐
-        │  deterministic tools (the clerk) run the host effect, then record it   │
-        │   fs.read   fs.list   code.write_file   code.apply_patch   shell.exec   │
+        │  Claude Code's built-in tools (Bash, Write, Edit, Read, …) perform the │
+        │  effect. They are the deterministic clerk; the model never bypasses    │
+        │  them.                                                                  │
         └───────────────────────────────┬───────────────────────────────────────┘
                                         ▼
         ┌──────────── DURABLE STATE: hash-chained decision log ─────────────────┐
-        │  every accepted Decision recorded before its effect is observable →    │
-        │  replay reconstructs state with ZERO model calls (Tenet 3)             │
+        │  PostToolUse hook (.claude/hooks/log-decision.py) records every        │
+        │  executed call to .claude/audit/decisions.jsonl, each record chained   │
+        │  to the previous checksum → tamper-evident, auditable (Tenet 3).       │
         └────────────────────────────────────────────────────────────────────────┘
+
+        SessionStart hook (.claude/hooks/session-init.py) binds every session to
+        this directive automatically — no command for the operator to run.
 ```
 
-The arrow only ever points down. Nothing in the reasoning plane holds a handle to
-the file system, the shell, or the network — those exist solely as harness-granted
-capabilities the execution plane uses. **Claude is capable, but it sits entirely
-above the gate.**
+The arrow only ever points down. Nothing in the reasoning plane reaches the host
+except by proposing a tool call that the gate accepts. **Claude is capable, but it
+sits entirely above the gate** — and the gate is enforced by Claude Code's own hook
+mechanism, not by a wrapper we built.
+
+## What maps to what
+
+```text
+   Jaros / jaros-code concept        Claude Code native mechanism
+   ──────────────────────────        ──────────────────────────────────────────
+   reasoning plane (the model)        Claude driving Claude Code
+   single-purpose agents              .claude/agents/*.md subagents (auto-delegated)
+   the decision gate                  PreToolUse hook (gate.py + policy.py)
+   deterministic execution tools      Claude Code built-in tools (Bash/Write/Edit/…)
+   hash-chained decision log          PostToolUse hook → .claude/audit/decisions.jsonl
+   capability-safety / denylist       policy.py (the single tuning point)
+   spec-first governance              .jarify/ (PRIME-001 + EXT-*) + index.json
+   operator surface (Claude-Code-like) Claude Code itself + optional /jarify-status
+   the jarify roles (spec/task/build/  spec-author, task-decomposer, builder,
+     architect)                         architect subagents
+```
+
+## Authentic by construction
+
+The control must not make the operator do more. Three hooks make it passive:
+
+- **SessionStart** injects the standing governance context, so Claude operates
+  under the discipline from its first turn — the operator never "turns it on."
+- **PreToolUse** gates every dangerous tool call automatically; the operator only
+  notices it when something genuinely unsafe is refused.
+- **PostToolUse** records every call automatically; the audit trail accrues with no
+  ceremony.
+
+Subagents auto-delegate by their `description`. The one optional convenience,
+`/jarify-status`, is read-only and never required for the discipline to function.
 
 ## Why confine a capable model
 
-A frontier model could, in principle, be handed a shell and told to go. The cost
-of that convenience is everything this template exists to provide:
-
 ```text
-   property            how the two planes provide it
+   property            how the mapped two planes provide it
    ─────────────────   ────────────────────────────────────────────────────────
-   safety              agents hold no handles; a bad generation cannot reach a
-                       capability the gate didn't grant (capability-safety)
-   reproducibility     the only non-deterministic input is the recorded Decision,
-                       so any run replays byte-for-byte with no model call
-   auditability        the hash-chained log is the complete account of what every
-                       agent decided and what every tool did
-   honesty             refusals, failures, and skips are reported as themselves;
-                       nothing is hidden or fabricated
+   safety              the PreToolUse gate refuses destructive/privileged/exfil
+                       effects deterministically, before they run
+   reproducibility     every executed effect is recorded in commit order, so a run
+                       is auditable and can be reconstructed
+   auditability        the hash-chained log is the tamper-evident account of what
+                       the harness did
+   honesty             refusals, failures, and skips are surfaced as themselves
 ```
 
-None of these depend on the model being weak. That is the whole point of the
-inversion from jaros-code: the discipline is a governance property, valuable
-*because* the model is capable, not in spite of it.
-
-## Plane placement: route each grain to the plane that should own it
-
-```text
-   for each grain, ask: is its CORE a judgement Claude should make?
-   ─────────────────────────────────────────────────────────────────────────
-   YES → tiny AGENT (reasoning plane)      NO → deterministic TOOL (exec plane)
-   • route a request to an action          • apply a patch / write bytes
-   • plan the steps                        • run a command (denylist-gated)
-   • propose one old→new edit              • prove a snippet is unique
-   • read a PASS/FAIL result               • enforce size / safety limits
-```
-
-Even when Claude *could* do the deterministic part, routing it to a tool is what
-makes the system auditable: the model's role shrinks to the judgement, and the
-judgement is all that is recorded as non-deterministic input.
-
-## What is in this template
-
-```text
-  jaros_claude/            vendored two-plane runtime (self-contained, stdlib-only)
-    core/                  Decision, the gate, the JSON-value guard
-    execution/            the executor + the dynamic tool loader
-    state/                the hash-chained decision log + replay
-    llm/                  the LlmClient contract + the Claude adapter
-  .jaros-data/
-    agents/               single-purpose agents (orchestrator, planner, editor, …)
-    tools/                deterministic tools (fs.*, code.*, shell.exec) + safety gate
-    config/llm.json       model selection (Claude Opus 4.8, adaptive thinking)
-  harness/                the Claude-Code-like CLI + Runtime + agent loop
-  tests/                  proofs of the control (gate, replay, agent contracts)
-```
+None of these depend on the model being weak. That is the inversion from
+jaros-code: the discipline is a governance property, valuable *because* the model
+is capable.
 
 ## Spec map
 
 ```text
   PRIME-001  ── north star (this document; intent.md + design.md)
-     ├── EXT-001  deterministic tool plane (fs.read, fs.list, write_file, apply_patch, shell.exec)
-     ├── EXT-002  single-purpose Claude agent fleet (orchestrator, planner, editor, test-reader)
-     ├── EXT-003  orchestration: gate→executor→log Runtime + the plan→act→observe→replan loop
-     └── EXT-004  Claude reasoning adapter behind the narrow LlmClient contract
+     ├── EXT-001  the decision gate (PreToolUse hook + policy) — Tenet 1
+     ├── EXT-002  single-purpose subagent fleet (.claude/agents) — Tenet 2
+     ├── EXT-003  durable decision log + session binding (PostToolUse/SessionStart) — Tenet 3
+     └── EXT-004  governance binding (CLAUDE.md, settings.json, .jarify scaffold) — Tenets 4 & 5
 ```
-
-Every `EXT` serves exactly one tenet of the Intent and must never contradict a
-higher tenet. New capability is added by widening the fleet and sharpening the
-tools — and always behind the gate.
 
 ## Adopting this template into your project
 
-`jaros-claude` is a code-building scaffold. When you copy it into a project, you
-operate that project with the **same** jarify loop that governs this template:
+Copy the contents in. From then on, operate your project with the **same** jarify
+loop that governs this template — and Claude Code does it through the subagents:
 
 ```text
    how jaros-claude is governed        how you build your project with it
    ────────────────────────────        ──────────────────────────────────
    PRIME-001 (this directive)    ⇄     your project's PRIME directive (your intent)
-   EXT-00x requirements/design   ⇄     feature requirements/design for your project
-   single-purpose agents +       ⇄     same single-purpose agents + deterministic
-     deterministic tools                 tools implement one task at a time
-   index.json traceability       ⇄     your code traced back to your spec
+   EXT-00x requirements/design   ⇄     spec-author drafts your feature specs
+   tasks.md ([TASK-x])           ⇄     task-decomposer breaks them into scoped tasks
+   single-purpose agents +       ⇄     builder implements one task at a time; every
+     gated tools                         effect passes the gate
+   index.json traceability       ⇄     architect validates each task against its spec
 ```
 
 Capture your intent first, decompose it, implement one scoped task at a time, and
-keep every effect behind the gate. Claude does the reasoning; the harness keeps
-the authority.
+let the gate keep authority. Claude Code does the reasoning; the harness — governed
+by these hooks and specs — keeps the control.

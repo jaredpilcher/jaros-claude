@@ -1,27 +1,29 @@
 ---
 id: EXT-004
-title: Claude Reasoning Adapter behind the LlmClient Contract
+title: Governance Binding (CLAUDE.md, settings.json, .jarify scaffold)
 status: implemented
 priority: high
-serves: PRIME-001 Tenet 2 (Claude is the reasoning model, confined to data-in/data-out)
+serves: PRIME-001 Tenet 4 (spec-first) and Tenet 5 (Claude-Code-like UX)
 ---
 
-This spec serves **Tenet 2** of PRIME-001: all reasoning is Claude, accessed
-through one narrow, provider-neutral contract. The model returns inert data only;
-it holds no handles and drives no execution.
+This spec serves **Tenets 4 and 5** of PRIME-001: the discipline is bound into the
+Claude Code harness through its own configuration, spec-first and unobtrusively.
 
 ## Requirements
 
-- **REQ-1 `LlmClient` contract** — a provider-neutral `complete(LlmRequest) ->
-  LlmResponse` Protocol. `LlmRequest`/`LlmResponse` carry inert JSON-serializable
-  data only — no callbacks, sockets, or client instances cross the boundary.
-  (`jaros_claude/llm/client.py`)
-- **REQ-2 Claude adapter** — `ClaudeClient` implements the contract over the
-  Anthropic Messages API, defaulting to `claude-opus-4-8` with adaptive thinking
-  and configurable effort. It reads `ANTHROPIC_API_KEY` from the environment,
-  surfaces errors and refusals honestly (Tenet 3), and never performs a side
-  effect. A `health()` probe reports reachability for `/status`.
-  (`jaros_claude/llm/claude_client.py`)
+- **REQ-1 Working agreement** — `CLAUDE.md` binds every session to the Prime
+  Directive: the two-plane discipline, plane-placement, spec-first commits, and the
+  stop-and-flag-on-conflict rule. It is the project-level instruction Claude Code
+  loads automatically. (`CLAUDE.md`)
+- **REQ-2 Hook + permission configuration** — `.claude/settings.json` registers the
+  gate, the decision log, and the session binding so the control is active by
+  construction when the template is copied in. (`.claude/settings.json`)
+- **REQ-3 Spec-first scaffold** — `.jarify/` holds PRIME-001 and the EXT specs with
+  `index.json` traceability; the `spec-author`/`task-decomposer` subagents extend it
+  for the adopting project's own features. (`.jarify/`)
+- **REQ-4 Honest safety contract** — `SAFETY.md` states what the gate guarantees,
+  what it deliberately allows, and how to harden it (the `policy.py` /
+  `BLOCK_ALL_EGRESS` tuning point). (`SAFETY.md`)
 
-Model selection is configured in `.jaros-data/config/llm.json` and overridable
-via `JCLAUDE_MODEL` / `JCLAUDE_EFFORT` / `JCLAUDE_MAX_TOKENS`.
+The binding must never force the operator into extra ceremony — Claude Code stays
+itself; the discipline rides on its native config.

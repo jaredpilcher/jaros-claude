@@ -1,29 +1,31 @@
 ---
 id: EXT-002
-title: Single-Purpose Claude Agent Fleet
+title: Single-Purpose Subagent Fleet (.claude/agents)
 status: implemented
 priority: high
-serves: PRIME-001 Tenet 2 (Claude confined to the reasoning plane)
+serves: PRIME-001 Tenet 2 (Claude confined; capability by composition)
 ---
 
-This spec serves **Tenet 2** of PRIME-001: all reasoning is Claude, and each
-agent makes ONE narrow judgement and emits inert `Decision` data only. Agents
-hold no host handles; capability comes from composing many small agents behind
-the gate, not from one big agent.
+This spec serves **Tenet 2** of PRIME-001: capability comes from composing many
+small, single-purpose subagents — each making ONE narrow judgement — not from one
+big agent with unguarded power. On the Claude Code harness these are
+`.claude/agents/*.md` subagents, which auto-delegate by their `description`, so the
+operator gets the decomposition without invoking anything.
+
+The fleet mirrors the jarify roles (the spec-first loop, all the way down).
 
 ## Requirements
 
-- **REQ-1 `orchestrator`** — route a natural-language request to exactly one
-  action (read | list | edit | write | run | plan | help), emitting an inert
-  routing Decision. (`.jaros-data/agents/orchestrator_agent.py`)
-- **REQ-2 `editor`** — given a file and an instruction, propose ONE exact old→new
-  edit and emit a `code.apply_patch` Decision (or an honest no-op if it cannot).
-  (`.jaros-data/agents/editor_agent.py`)
-- **REQ-3 `planner`** — break a request into an ordered, inert plan of steps over
-  the verb set. (`.jaros-data/agents/planner_agent.py`)
-- **REQ-4 `test-reader`** — read raw test output and emit a PASS/FAIL verdict with
-  the salient failure. (`.jaros-data/agents/test_reader_agent.py`)
+- **REQ-1 `spec-author`** — captures intent as a `.jarify` requirement/design and
+  index.json traceability; does not implement. (`.claude/agents/spec-author.md`)
+- **REQ-2 `task-decomposer`** — breaks one requirement into small, ordered,
+  individually-verifiable tasks, applying plane-placement triage (judgement →
+  subagent, deterministic op → gated tool). (`.claude/agents/task-decomposer.md`)
+- **REQ-3 `builder`** — implements EXACTLY ONE scoped task, verifies it, updates
+  traceability, and stops. Its effects pass the gate. (`.claude/agents/builder.md`)
+- **REQ-4 `architect`** — read-only reviewer: validates a task against its
+  requirement and checks no higher tenet is weakened, before commit.
+  (`.claude/agents/architect.md`)
 
-Every agent exposes `build(llm)` and a `decide(context) -> [Decision]` boundary.
-The Decision is the only thing it emits — never a side effect. Adding capability
-means adding more small agents, each behind the same gate.
+Each subagent is genuinely single-purpose with a minimal tool grant. Add capability
+by adding more small subagents — never by widening one into a generalist.

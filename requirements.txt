@@ -1,3 +1,0 @@
-# Required only to actually call Claude (the ClaudeClient adapter).
-# The vendored runtime and the test suite are stdlib-only.
-anthropic>=0.40
