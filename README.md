@@ -61,6 +61,10 @@ You use Claude Code exactly as you always do; the control rides along.
                          builder, architect (the jarify roles)
   commands/
     jarify-status.md     optional, read-only: specs + gate posture + chain integrity
+  skills/                conformant "how to add capability" (auto-triggered)
+    add-capability/      master loop: spec → decompose → build → verify → commit
+    add-subagent/        scaffold a new single-purpose subagent (+ template)
+    extend-gate/         spec'd, tested change to the gate policy
 .jarify/                 governance: PRIME-001 (Prime Directive) + EXT-001..004,
                          with index.json traceability
 CLAUDE.md                the working agreement Claude Code loads every session

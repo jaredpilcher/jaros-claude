@@ -98,8 +98,28 @@ is capable.
      ├── EXT-001  the decision gate (PreToolUse hook + policy) — Tenet 1
      ├── EXT-002  single-purpose subagent fleet (.claude/agents) — Tenet 2
      ├── EXT-003  durable decision log + session binding (PostToolUse/SessionStart) — Tenet 3
-     └── EXT-004  governance binding (CLAUDE.md, settings.json, .jarify scaffold) — Tenets 4 & 5
+     ├── EXT-004  governance binding (CLAUDE.md, settings.json, .jarify scaffold) — Tenets 4 & 5
+     └── EXT-005  capability-extension skills (.claude/skills) — Tenets 4 & 5
 ```
+
+## Extending the harness stays easy (and conformant)
+
+Adding new capability must not tempt anyone off the discipline. The extension points
+are themselves taught by **Agent Skills** (`.claude/skills`), auto-discovered and
+model-triggered, so a contributor falls *into* the jarify loop:
+
+```text
+   want to add …                 skill / mechanism
+   ───────────────────────────   ──────────────────────────────────────────────
+   any feature / behavior        add-capability  → spec → decompose → build → verify
+   a new judgement               add-subagent    → a single-purpose .claude/agents/*
+   a change to what the gate      extend-gate     → spec'd edit of .claude/hooks/policy.py
+     allows or refuses
+   a new requirement             spec-author subagent → .jarify/EXT-00N + index.json
+```
+
+The skills reinforce the gate, the decision log, and spec-first traceability — never
+circumvent them. Capability grows by adding more small, gated, spec-traced pieces.
 
 ## Adopting this template into your project
 

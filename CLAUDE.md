@@ -62,6 +62,23 @@ governed. The fleet mirrors the jarify roles and auto-delegates:
 - **`builder`** — implement EXACTLY ONE task, verify it, update traceability, stop.
 - **`architect`** — validate the task against its requirement before commit.
 
+## Adding capability stays easy — use the skills
+
+Extending the harness must stay conformant by construction. Agent Skills
+(`.claude/skills`) encode the conformant way to add, and auto-trigger by their
+description:
+
+- **`add-capability`** — the master loop for any new feature: spec → decompose →
+  build one task → validate → commit code+spec together. Start here for "add X".
+- **`add-subagent`** — when the new grain is a judgement: scaffold a new
+  single-purpose subagent (one job, minimal tools, proposes-not-bypasses), with a
+  template.
+- **`extend-gate`** — when a change alters what the gate allows/refuses: a spec'd,
+  tested edit of `.claude/hooks/policy.py` (a governance change, never a quiet one).
+
+Capability grows by adding more small, gated, spec-traced pieces — never by widening
+one into a generalist or routing around the gate.
+
 ## Design rules
 
 - **Subagents are single-purpose.** Each makes ONE narrow judgement. Capability

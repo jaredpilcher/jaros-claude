@@ -1,0 +1,5 @@
+{
+  "REQ-1": [{"file": ".claude/skills/add-capability/SKILL.md"}],
+  "REQ-2": [{"file": ".claude/skills/add-subagent/SKILL.md"}, {"file": ".claude/skills/add-subagent/templates/subagent.md"}],
+  "REQ-3": [{"file": ".claude/skills/extend-gate/SKILL.md"}]
+}
